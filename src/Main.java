@@ -1,5 +1,4 @@
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 class HuffmanNode {
@@ -30,18 +29,19 @@ class HuffmanComparator implements Comparator<HuffmanNode> {
 }
 
 public class Main {
+    private static HuffmanNode root;
     public static Map<Character, String> huffmanCodes = new HashMap<>();
 
     public static void main(String[] args) throws IOException {
-        String inputFile = "F:\\Sem 6\\My.txt";
+        String inputFile = "F:\\Sem 6\\Hello.txt";
         String compressedFile = "F:\\Sem 6\\compressed.txt";
         String decompressedFile = "F:\\Sem 6\\decompressed.txt";
 
         compress(inputFile, compressedFile);
-//        decompress(compressedFile, decompressedFile);
+        decompress(compressedFile, decompressedFile);
     }
 
-    private static void compress(String inputFile, String compressedFile) throws IOException {
+    public static void compress(String inputFile, String compressedFile) throws IOException {
 
         //Step1: Reads the data from the file and makes an array freq to store data
         FileInputStream fis = new FileInputStream(inputFile);
@@ -75,51 +75,42 @@ public class Main {
             pq.add(sum);
         }
 
-        HuffmanNode root = pq.peek();
+        root = pq.peek();
 
-        System.out.println(root.data);
-        printInorder(root);
         if (root == null) {
             throw new IllegalStateException("Priority queue is empty");
         }
 
+        //Step4: Generate codes for each character
         generateCodes(root, "");
 
+        //Step5: Write the code genereated to the file
         FileInputStream fis2 = new FileInputStream(inputFile);
         FileOutputStream fos = new FileOutputStream(compressedFile);
         StringBuilder sb = new StringBuilder();
+
         while ((n = fis2.read()) != -1) {
             sb.append(huffmanCodes.get((char) n));
         }
         fis2.close();
-
-
+        System.out.println("The encoded characters are:"+huffmanCodes);
         String encoded = sb.toString();
-        System.out.println(encoded);
+        System.out.println("The Encoded String is:"+encoded);
 
         for (int i = 0; i < encoded.length(); i += 8) {
             String byteString = encoded.substring(i, Math.min(i + 8, encoded.length()));
+            if(byteString.length()<8){
+                String BinaryString = String.format("%8s", byteString).replace(' ', '0');
+                int temp = Integer.parseInt(BinaryString, 2);
+                fos.write(temp);
+            }
+            else {
             int b = Integer.parseInt(byteString, 2);
             fos.write(b);
+            }
         }
             System.out.println("File compressed successfully.");
-            System.out.println(huffmanCodes);
             fos.close();
-
-    }
-    public static void printInorder(HuffmanNode root)
-    {
-        if (root == null)
-            return;
-
-        // First recur on left subtree
-        printInorder(root.left);
-
-        // Now deal with the node
-        System.out.print(root.c + " ");
-
-        // Then recur on right subtree
-        printInorder(root.right);
     }
 
     private static void generateCodes (HuffmanNode root, String s){
@@ -142,17 +133,14 @@ public class Main {
                 StringBuilder sb = new StringBuilder();
                 int bit;
                 while ((bit = fis.read()) != -1) {
-                    System.out.println(Integer.toBinaryString(bit));
-                    sb.append((char) bit);
-
-                    // Check if the current string is a valid Huffman code
-                    String code = sb.toString();
-                    Character originalChar = getKeyByValue(huffmanCodes, code);
-                    if (originalChar != null) {
-                        fos.write(originalChar);
-                        sb.setLength(0); // Clear the StringBuilder for the next code
-                    }
+                    String binaryString = Integer.toBinaryString(bit);
+                    String paddedBinaryString = String.format("%8s", binaryString).replace(' ', '0');
+                    sb.append(paddedBinaryString);
                 }
+                    String code = sb.toString();
+                    System.out.println("The Original string from the compressed file"+code);
+                String decoded=decodeString(code,root);
+                fos.write(decoded.getBytes());
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -160,15 +148,28 @@ public class Main {
 
             System.out.println("File decompressed successfully.");
         }
+    public static String decodeString(String encodedString, HuffmanNode root) {
+        StringBuilder decodedString = new StringBuilder();
+        HuffmanNode currentNode = root;
+        int length = encodedString.length();
 
-        // Helper method to get a key from a map based on its value
-        private static <K, V > K getKeyByValue(Map < K, V > map, V value) {
-            for (Map.Entry<K, V> entry : map.entrySet()) {
-                if (value.equals(entry.getValue())) {
-                    return entry.getKey();
-                }
+        for (int i = 0; i < length; i++) {
+            char currentChar = encodedString.charAt(i);
+            if (currentChar == '0') {
+                currentNode = currentNode.left;
+            } else if (currentChar == '1') {
+                currentNode = currentNode.right;
             }
-            return null;
-        }
 
+            // Check if a leaf node is reached
+            if (currentNode.left == null && currentNode.right == null) {
+                if (currentNode.c != '\0') {
+                    decodedString.append(currentNode.c);
+                }
+                // Reset to root node to continue decoding the next character
+                currentNode = root;
+            }
+        }
+        return decodedString.toString();
+    }
 }
